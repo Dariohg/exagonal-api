@@ -6,7 +6,6 @@ import (
 )
 
 func ConfigureCircuitRoutes(r *gin.Engine) {
-	// Repositorio compartido
 	mysql := NewMySQL()
 
 	// Casos de uso

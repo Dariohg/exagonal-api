@@ -1,7 +1,9 @@
 package application
 
-import "f1-hex-api/src/circuits/domain"
-import "f1-hex-api/src/circuits/domain/entities"
+import (
+	"f1-hex-api/src/circuits/domain"
+	"f1-hex-api/src/circuits/domain/entities"
+)
 
 type CreateCircuit struct {
 	db domain.ICircuit

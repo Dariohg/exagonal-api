@@ -18,7 +18,14 @@ CREATE TABLE IF NOT EXISTS circuitos (
     longitud DECIMAL(10,3) NOT NULL,
     numero_vueltas INT NOT NULL,
     numero_curvas INT NOT NULL,
-    conductor_id INT,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conductor_id) REFERENCES conductores(id)
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+CREATE TABLE IF NOT EXISTS circuito_conductor (
+   circuito_id INT,
+   conductor_id INT,
+   FOREIGN KEY (circuito_id) REFERENCES circuitos(id),
+    FOREIGN KEY (conductor_id) REFERENCES conductores(id),
+    PRIMARY KEY (circuito_id, conductor_id)
+    );
+
