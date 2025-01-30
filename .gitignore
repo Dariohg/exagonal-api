@@ -1,0 +1,27 @@
+# Binarios compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Archivos de prueba
+*.test
+
+# Archivos de cobertura
+*.out
+
+# Dependencias
+/vendor/
+
+# Variables de entorno
+.env
+
+# IDEs y editores
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Sistema operativo
+.DS_Store
