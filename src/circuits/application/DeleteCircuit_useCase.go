@@ -1,6 +1,8 @@
 package application
 
-import "f1-hex-api/src/circuits/domain"
+import (
+	"f1-hex-api/src/circuits/domain"
+)
 
 type DeleteCircuit struct {
 	db domain.ICircuit

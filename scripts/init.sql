@@ -29,3 +29,29 @@ CREATE TABLE IF NOT EXISTS circuito_conductor (
     PRIMARY KEY (circuito_id, conductor_id)
     );
 
+CREATE TABLE IF NOT EXISTS conductor_estado (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    conductor_id INT NOT NULL,
+    esta_corriendo BOOLEAN DEFAULT FALSE,
+    ultima_verificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conductor_id) REFERENCES conductores(id)
+    );
+
+CREATE TABLE IF NOT EXISTS tiempos_vuelta (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    circuito_id INT NOT NULL,
+    conductor_id INT NOT NULL,
+    numero_vuelta INT NOT NULL,
+    tiempo DECIMAL(10,3) NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (circuito_id) REFERENCES circuitos(id),
+    FOREIGN KEY (conductor_id) REFERENCES conductores(id)
+    );
+
+CREATE TABLE IF NOT EXISTS posiciones_carrera (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    conductor_id INT NOT NULL,
+    posicion INT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conductor_id) REFERENCES conductores(id)
+    );

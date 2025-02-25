@@ -1,0 +1,12 @@
+package entities
+
+import "time"
+
+type LapTime struct {
+	ID           int       `json:"id"`
+	CircuitoID   int       `json:"circuito_id"`
+	ConductorID  int       `json:"conductor_id"`
+	NumeroVuelta int       `json:"numero_vuelta"`
+	Tiempo       float64   `json:"tiempo"`
+	Timestamp    time.Time `json:"timestamp"`
+}
