@@ -5,6 +5,7 @@ import (
 	"f1-hex-api/src/core"
 	"fmt"
 	"log"
+	"time"
 )
 
 type MySQL struct {
@@ -21,15 +22,16 @@ func NewMySQL() *MySQL {
 
 func (mysql *MySQL) Guardar(circuit *entities.Circuit) error {
 	query := `INSERT INTO circuitos 
-              (nombre, pais, longitud, numero_vueltas, numero_curvas) 
-              VALUES (?, ?, ?, ?, ?)`
+              (nombre, pais, longitud, numero_vueltas, numero_curvas, tiempo_promedio_vuelta) 
+              VALUES (?, ?, ?, ?, ?, ?)`
 
 	result, err := mysql.conn.ExecutePreparedQuery(query,
 		circuit.Nombre,
 		circuit.Pais,
 		circuit.Longitud,
 		circuit.NumeroVueltas,
-		circuit.NumeroCurvas)
+		circuit.NumeroCurvas,
+		circuit.TiempoPromedioVuelta)
 
 	if err != nil {
 		return fmt.Errorf("error al guardar el circuito: %v", err)
@@ -46,7 +48,7 @@ func (mysql *MySQL) Guardar(circuit *entities.Circuit) error {
 
 func (mysql *MySQL) ObtenerTodos() ([]entities.Circuit, error) {
 	query := `SELECT id, nombre, pais, longitud, numero_vueltas, 
-              numero_curvas, fecha_creacion FROM circuitos`
+              numero_curvas, tiempo_promedio_vuelta, fecha_creacion FROM circuitos`
 	rows := mysql.conn.FetchRows(query)
 	defer rows.Close()
 
@@ -60,6 +62,7 @@ func (mysql *MySQL) ObtenerTodos() ([]entities.Circuit, error) {
 			&circuit.Longitud,
 			&circuit.NumeroVueltas,
 			&circuit.NumeroCurvas,
+			&circuit.TiempoPromedioVuelta,
 			&circuit.FechaCreacion); err != nil {
 			return nil, fmt.Errorf("error al escanear circuito: %v", err)
 		}
@@ -71,7 +74,7 @@ func (mysql *MySQL) ObtenerTodos() ([]entities.Circuit, error) {
 
 func (mysql *MySQL) ObtenerPorId(id int) (*entities.Circuit, error) {
 	query := `SELECT id, nombre, pais, longitud, numero_vueltas, 
-              numero_curvas, fecha_creacion 
+              numero_curvas, tiempo_promedio_vuelta, fecha_creacion 
               FROM circuitos WHERE id = ?`
 
 	rows := mysql.conn.FetchRows(query, id)
@@ -86,6 +89,7 @@ func (mysql *MySQL) ObtenerPorId(id int) (*entities.Circuit, error) {
 			&circuit.Longitud,
 			&circuit.NumeroVueltas,
 			&circuit.NumeroCurvas,
+			&circuit.TiempoPromedioVuelta,
 			&circuit.FechaCreacion)
 		if err != nil {
 			return nil, fmt.Errorf("error al escanear circuito: %v", err)
@@ -101,7 +105,8 @@ func (mysql *MySQL) Actualizar(circuit *entities.Circuit) error {
                   pais = ?, 
                   longitud = ?, 
                   numero_vueltas = ?, 
-                  numero_curvas = ?
+                  numero_curvas = ?,
+                  tiempo_promedio_vuelta = ?
               WHERE id = ?`
 
 	result, err := mysql.conn.ExecutePreparedQuery(query,
@@ -110,6 +115,7 @@ func (mysql *MySQL) Actualizar(circuit *entities.Circuit) error {
 		circuit.Longitud,
 		circuit.NumeroVueltas,
 		circuit.NumeroCurvas,
+		circuit.TiempoPromedioVuelta,
 		circuit.ID)
 
 	if err != nil {
@@ -262,62 +268,6 @@ func (mysql *MySQL) GuardarTiempoVuelta(lapTime *entities.LapTime) error {
 	return nil
 }
 
-func (mysql *MySQL) ObtenerPosiciones(circuitoID int) ([]entities.Position, error) {
-	query := `
-    SELECT p1.id, p1.circuito_id, p1.conductor_id, p1.posicion, p1.timestamp 
-    FROM posiciones_carrera p1
-    INNER JOIN (
-        SELECT conductor_id, MAX(timestamp) as max_timestamp
-        FROM posiciones_carrera
-        WHERE circuito_id = ?
-        GROUP BY conductor_id
-    ) p2 ON p1.conductor_id = p2.conductor_id AND p1.timestamp = p2.max_timestamp
-    WHERE p1.circuito_id = ?
-    ORDER BY p1.posicion ASC`
-
-	rows := mysql.conn.FetchRows(query, circuitoID, circuitoID)
-	defer rows.Close()
-
-	var positions []entities.Position
-	for rows.Next() {
-		var position entities.Position
-		if err := rows.Scan(
-			&position.ID,
-			&position.CircuitoID,
-			&position.ConductorID,
-			&position.Posicion,
-			&position.Timestamp); err != nil {
-			return nil, fmt.Errorf("error al escanear posición: %v", err)
-		}
-		positions = append(positions, position)
-	}
-
-	return positions, nil
-}
-
-func (mysql *MySQL) GuardarPosicion(position *entities.Position) error {
-	query := `INSERT INTO posiciones_carrera 
-              (circuito_id, conductor_id, posicion) 
-              VALUES (?, ?, ?)`
-
-	result, err := mysql.conn.ExecutePreparedQuery(query,
-		position.CircuitoID,
-		position.ConductorID,
-		position.Posicion)
-
-	if err != nil {
-		return fmt.Errorf("error al guardar posición: %v", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("error al obtener ID de la posición: %v", err)
-	}
-
-	position.ID = int(id)
-	return nil
-}
-
 func (mysql *MySQL) ObtenerIncidentesActivos(circuitoID int, ultimoID int) ([]entities.Incident, error) {
 	query := `SELECT id, circuito_id, tipo_incidente, descripcion, conductor_id, 
               estado, timestamp 
@@ -370,4 +320,68 @@ func (mysql *MySQL) GuardarIncidente(incident *entities.Incident) error {
 
 	incident.ID = int(id)
 	return nil
+}
+
+func (mysql *MySQL) ObtenerUltimoRecord(circuitoID int) (*entities.LapRecord, error) {
+	// Obtener el tiempo promedio del circuito
+	queryCircuito := `SELECT tiempo_promedio_vuelta FROM circuitos WHERE id = ?`
+	rowsCircuito := mysql.conn.FetchRows(queryCircuito, circuitoID)
+	defer rowsCircuito.Close()
+
+	var tiempoPromedio float64
+	if !rowsCircuito.Next() {
+		return nil, fmt.Errorf("circuito no encontrado")
+	}
+
+	if err := rowsCircuito.Scan(&tiempoPromedio); err != nil {
+		return nil, fmt.Errorf("error al leer tiempo promedio: %v", err)
+	}
+
+	// Consultar el mejor tiempo de vuelta actual en este circuito
+	// Solo consideramos tiempos de vuelta de los últimos 10 minutos
+	tiempoLimite := time.Now().Add(-10 * time.Minute)
+
+	query := `
+    SELECT t.id, t.circuito_id, t.conductor_id, c.nombre_completo, t.tiempo, t.timestamp
+    FROM tiempos_vuelta t
+    INNER JOIN conductores c ON t.conductor_id = c.id
+    WHERE t.circuito_id = ? AND t.timestamp > ?
+    ORDER BY t.tiempo ASC 
+    LIMIT 1`
+
+	rows := mysql.conn.FetchRows(query, circuitoID, tiempoLimite)
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, nil // No hay tiempos de vuelta recientes
+	}
+
+	var recordID, conductorID int
+	var circuitID int
+	var nombrePiloto string
+	var tiempoVuelta float64
+	var timestamp time.Time
+
+	if err := rows.Scan(&recordID, &circuitID, &conductorID, &nombrePiloto, &tiempoVuelta, &timestamp); err != nil {
+		return nil, fmt.Errorf("error al escanear tiempo de vuelta: %v", err)
+	}
+
+	// Verificar si es un récord (mejor que el tiempo promedio)
+	if tiempoVuelta < tiempoPromedio {
+		diferencia := tiempoPromedio - tiempoVuelta
+
+		record := &entities.LapRecord{
+			ID:               recordID,
+			CircuitoID:       circuitID,
+			ConductorID:      conductorID,
+			NombrePiloto:     nombrePiloto,
+			TiempoVuelta:     tiempoVuelta,
+			DiferenciaTiempo: diferencia,
+			Timestamp:        timestamp,
+		}
+
+		return record, nil
+	}
+
+	return nil, nil // No hay récord
 }

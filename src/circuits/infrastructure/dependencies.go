@@ -17,9 +17,9 @@ func ConfigureCircuitRoutes(r *gin.Engine) {
 	inscribirPiloto := application.NewInscribirPiloto(mysql)
 	getDriversByCircuit := application.NewGetDriversByCircuit(mysql)
 	monitorLapTimes := application.NewMonitorLapTimes(mysql)
+	monitorLapRecords := application.NewMonitorLapRecords(mysql)
+
 	saveLapTime := application.NewSaveLapTime(mysql)
-	monitorPositions := application.NewMonitorPositions(mysql)
-	savePosition := application.NewSavePosition(mysql)
 	waitForIncidents := application.NewWaitForIncidents(mysql)
 
 	// Controladores
@@ -31,9 +31,9 @@ func ConfigureCircuitRoutes(r *gin.Engine) {
 	inscribirPilotoController := NewInscribirPilotoController(inscribirPiloto)
 	getDriversByCircuitController := NewGetDriversByCircuitController(getDriversByCircuit)
 	monitorLapTimesController := NewMonitorLapTimesController(monitorLapTimes)
+	monitorLapRecordsController := NewMonitorLapRecordsController(monitorLapRecords)
+
 	saveLapTimeController := NewSaveLapTimeController(saveLapTime)
-	monitorPositionsController := NewMonitorPositionsController(monitorPositions)
-	savePositionController := NewSavePositionController(savePosition)
 	waitForIncidentsController := NewWaitForIncidentsController(waitForIncidents)
 
 	// Rutas
@@ -47,9 +47,8 @@ func ConfigureCircuitRoutes(r *gin.Engine) {
 		circuits.POST("/:id/pilotos", inscribirPilotoController.Execute)
 		circuits.GET("/:id/pilotos", getDriversByCircuitController.Execute)
 		circuits.GET("/:id/tiempos", monitorLapTimesController.Execute)
+		circuits.GET("/:id/records", monitorLapRecordsController.Execute)
 		circuits.POST("/:id/tiempos", saveLapTimeController.Execute)
-		circuits.GET("/:id/posiciones", monitorPositionsController.Execute)
-		circuits.POST("/:id/posiciones", savePositionController.Execute)
 		circuits.GET("/:id/incidentes", waitForIncidentsController.Execute)
 	}
 }

@@ -14,8 +14,7 @@ type ICircuit interface {
 	ObtenerTiemposVuelta(circuitoID int) ([]entities.LapTime, error)
 	GuardarTiempoVuelta(lapTime *entities.LapTime) error
 
-	ObtenerPosiciones(circuitoID int) ([]entities.Position, error)
-	GuardarPosicion(position *entities.Position) error
+	ObtenerUltimoRecord(circuitoID int) (*entities.LapRecord, error)
 
 	ObtenerIncidentesActivos(circuitoID int, ultimoID int) ([]entities.Incident, error)
 	GuardarIncidente(incident *entities.Incident) error
