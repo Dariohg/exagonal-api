@@ -210,18 +210,20 @@ func (mysql *MySQL) ObtenerPilotosInscritos(circuitoID int) ([]entities.CircuitD
 }
 
 func (mysql *MySQL) ObtenerTiemposVuelta(circuitoID int) ([]entities.LapTime, error) {
-	// Esta consulta obtiene el tiempo más reciente para cada piloto
+	// Esta consulta optimizada obtiene solo el tiempo más reciente para cada piloto
 	query := `
-    SELECT t1.id, t1.circuito_id, t1.conductor_id, t1.numero_vuelta, t1.tiempo, t1.timestamp 
+    SELECT t1.id, t1.circuito_id, t1.conductor_id, t1.numero_vuelta, t1.tiempo, t1.timestamp,
+           c.nombre_completo as nombre_piloto, c.nombre_equipo, c.numero_carro
     FROM tiempos_vuelta t1
     INNER JOIN (
-        SELECT conductor_id, MAX(timestamp) as max_timestamp
+        SELECT conductor_id, MAX(numero_vuelta) as ultima_vuelta
         FROM tiempos_vuelta
         WHERE circuito_id = ?
         GROUP BY conductor_id
-    ) t2 ON t1.conductor_id = t2.conductor_id AND t1.timestamp = t2.max_timestamp
+    ) t2 ON t1.conductor_id = t2.conductor_id AND t1.numero_vuelta = t2.ultima_vuelta
+    INNER JOIN conductores c ON t1.conductor_id = c.id
     WHERE t1.circuito_id = ?
-    ORDER BY t1.tiempo ASC` // Ordenamos por el mejor tiempo
+    ORDER BY t1.tiempo ASC`
 
 	rows := mysql.conn.FetchRows(query, circuitoID, circuitoID)
 	defer rows.Close()
@@ -229,15 +231,22 @@ func (mysql *MySQL) ObtenerTiemposVuelta(circuitoID int) ([]entities.LapTime, er
 	var lapTimes []entities.LapTime
 	for rows.Next() {
 		var lapTime entities.LapTime
+		var nombrePiloto, nombreEquipo string
+		var numeroCarro int
+
 		if err := rows.Scan(
 			&lapTime.ID,
 			&lapTime.CircuitoID,
 			&lapTime.ConductorID,
 			&lapTime.NumeroVuelta,
 			&lapTime.Tiempo,
-			&lapTime.Timestamp); err != nil {
+			&lapTime.Timestamp,
+			&nombrePiloto,
+			&nombreEquipo,
+			&numeroCarro); err != nil {
 			return nil, fmt.Errorf("error al escanear tiempo de vuelta: %v", err)
 		}
+
 		lapTimes = append(lapTimes, lapTime)
 	}
 
@@ -268,6 +277,7 @@ func (mysql *MySQL) GuardarTiempoVuelta(lapTime *entities.LapTime) error {
 	return nil
 }
 
+// Obtener incidentes activos con ID mayor al último conocido
 func (mysql *MySQL) ObtenerIncidentesActivos(circuitoID int, ultimoID int) ([]entities.Incident, error) {
 	query := `SELECT id, circuito_id, tipo_incidente, descripcion, conductor_id, 
               estado, timestamp 
@@ -297,6 +307,7 @@ func (mysql *MySQL) ObtenerIncidentesActivos(circuitoID int, ultimoID int) ([]en
 	return incidents, nil
 }
 
+// Guardar un nuevo incidente
 func (mysql *MySQL) GuardarIncidente(incident *entities.Incident) error {
 	query := `INSERT INTO incidentes_pista 
               (circuito_id, tipo_incidente, descripcion, conductor_id, estado) 

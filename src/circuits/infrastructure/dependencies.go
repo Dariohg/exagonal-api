@@ -21,6 +21,7 @@ func ConfigureCircuitRoutes(r *gin.Engine) {
 
 	saveLapTime := application.NewSaveLapTime(mysql)
 	waitForIncidents := application.NewWaitForIncidents(mysql)
+	createIncident := application.NewCreateIncident(mysql)
 
 	// Controladores
 	createCircuitController := NewCreateCircuitController(createCircuit)
@@ -35,6 +36,7 @@ func ConfigureCircuitRoutes(r *gin.Engine) {
 
 	saveLapTimeController := NewSaveLapTimeController(saveLapTime)
 	waitForIncidentsController := NewWaitForIncidentsController(waitForIncidents)
+	createIncidentController := NewCreateIncidentController(createIncident)
 
 	// Rutas
 	circuits := r.Group("/api/circuitos")
@@ -50,5 +52,6 @@ func ConfigureCircuitRoutes(r *gin.Engine) {
 		circuits.GET("/:id/records", monitorLapRecordsController.Execute)
 		circuits.POST("/:id/tiempos", saveLapTimeController.Execute)
 		circuits.GET("/:id/incidentes", waitForIncidentsController.Execute)
+		circuits.POST("/:id/incidentes", createIncidentController.Execute)
 	}
 }

@@ -16,42 +16,31 @@ func NewMonitorLapTimesController(useCase *application.MonitorLapTimes) *Monitor
 	return &MonitorLapTimesController{useCase: useCase}
 }
 
+// Execute maneja las solicitudes de monitoreo de tiempos de vuelta
+// Este método utiliza short polling para obtener actualizaciones periódicas
 func (mltc *MonitorLapTimesController) Execute(c *gin.Context) {
+	// Obtener ID del circuito
 	circuitoID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de circuito inválido"})
 		return
 	}
 
-	// Configurar el polling
-	ticker := time.NewTicker(1 * time.Second) // Reducimos a 1 segundo para mayor reactividad
-	defer ticker.Stop()
+	// Configuramos headers para evitar caché y optimizar la conexión
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+	c.Header("Content-Type", "application/json")
 
-	maxPolls := 60 // Aumentamos a 1 minuto (60 segundos) para seguir la carrera más tiempo
-	polls := 0
-
-	for {
-		select {
-		case <-ticker.C:
-			polls++
-
-			lapTimes, err := mltc.useCase.Execute(circuitoID)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-
-			c.JSON(http.StatusOK, gin.H{
-				"circuito_id":    circuitoID,
-				"timestamp":      time.Now(),
-				"poll_number":    polls,
-				"tiempos_vuelta": lapTimes,
-			})
-
-			// Si alcanzamos el máximo de consultas, terminamos
-			if polls >= maxPolls {
-				return
-			}
-		}
+	// Obtener los tiempos de vuelta más recientes para cada piloto
+	lapTimes, err := mltc.useCase.Execute(circuitoID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
+
+	// Respuesta inmediata con datos actuales
+	c.JSON(http.StatusOK, gin.H{
+		"timestamp":      time.Now(),
+		"circuito_id":    circuitoID,
+		"tiempos_vuelta": lapTimes,
+	})
 }
